@@ -1,0 +1,26 @@
+{
+  "scripts": {
+    "main": "ts-node -T src/app.ts"
+  },
+  "main": "./src/app.ts",
+  "lint-staged": {
+    "*.ts": "prettier -w \"**/*\" --ignore-unknown --cache"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.29.0",
+    "@openbook-dex/openbook-v2": "^0.1.10",
+    "@solana/web3.js": "^1.90.0",
+    "tslog": "^4.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "@types/websocket": "^1.0.9",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "dotenv": "^16.3.1",
+    "rpc-websockets": "^7.5.1",
+    "ts-node": "^10.9.1",
+    "tsup": "^7.1.0",
+    "typescript": "^5.1.6"
+  }
+}

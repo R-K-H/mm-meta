@@ -18,7 +18,7 @@ const OPENBOOK_TWAP_PROGRAM_ID = new PublicKey(
   'TWAPrdhADy2aTKN5iFZtNnkQYXERD9NvKjPFVPMSCNN',
 );
 
-import { OpenbookV2, IDL as OPENBOOK_IDL, LeafNode } from '@openbook-dex/openbook-v2';
+import { OpenbookV2, IDL as OPENBOOK_IDL, LeafNode, AnyNode } from '@openbook-dex/openbook-v2';
 
 const autocrat = {
   label: 'V0.1' as string,
@@ -31,7 +31,7 @@ const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_I
 
 const main = async() =>{
   const proposals = await autocratProgram.account.proposal.all()
-  const subscriptions: Array<{proposalId: number, pubKey: PublicKey, market: string}> = []
+  const subscriptions: Array<{proposalId: number, twapPubKey: PublicKey, obPubKey: PublicKey, market: string}> = []
   for (let proposal of proposals){
     if (proposal.account.state.pending) {
       console.log(`Proposal ${proposal.account.number.toString()}`)
@@ -40,34 +40,46 @@ const main = async() =>{
       console.log(`Pass Market: ${proposal.account.openbookTwapPassMarket.toString()}`)
       subscriptions.push({
         proposalId: parseInt(proposal.account.number.toString()),
-        pubKey: proposal.account.openbookTwapFailMarket,
+        twapPubKey: proposal.account.openbookTwapFailMarket,
+        obPubKey: proposal.account.openbookFailMarket,
         market: 'fail'
       })
       subscriptions.push({
         proposalId: parseInt(proposal.account.number.toString()),
-        pubKey: proposal.account.openbookTwapPassMarket,
+        twapPubKey: proposal.account.openbookTwapPassMarket,
+        obPubKey: proposal.account.openbookPassMarket,
         market: 'pass'
       })
     }
   }
   // console.log(subscriptions)
   for(let account of subscriptions){
+    const market = await openBookProgram.account.market.fetch(account.obPubKey)
     const subscriptionId = solanaConnection.onAccountChange(
-      account.pubKey,
+      market.asks,
       (updatedAccountInfo, ctx) => {
-        console.log(`---Event Notification for ${account.proposalId} - ${account.pubKey.toString()}`)
+        console.log(`---Event Notification for ${account.proposalId} - ${account.obPubKey.toString()}`)
         console.log()
         try {
-          const leafNode: LeafNode = openBookProgram.coder.types.decode('LeafNode', updatedAccountInfo.data)
-          const owner = leafNode.owner.toString()
-          const size = leafNode.quantity.toNumber()
-          const price = leafNode.key.shrn(64) // .toNumber() - doesn't work
-          const _price = price.toString()
-          console.log(`Order updated for Proposal ${account.proposalId} - ${account.market}`)
-          console.log(`By ${owner} on slot ${ctx.slot}`)
-          console.log(`For ${size} @ $${_price}`)
-          console.log('Raw Data:')
-          console.log(leafNode);
+          const asks = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data)
+          const leafNodesData = asks.nodes.nodes.filter(
+            (x: AnyNode) => x.tag === 2,
+          );
+          const leafNodes: LeafNode[] = [];
+          for (const x of leafNodesData) {
+            const leafNode: LeafNode = openBookProgram.coder.types.decode(
+              'LeafNode',
+              Buffer.from([0, ...x.data]),
+            );
+            const owner = leafNode.owner.toString()
+            const size = leafNode.quantity.toNumber()
+            const price = leafNode.key.shrn(64).toNumber()
+            console.log(`Order updated for Proposal ${account.proposalId} - ${account.market}`)
+            console.log(`By ${owner} on slot ${ctx.slot}`)
+            console.log(`For ${size} @ $${price}`)
+            console.log()
+            //console.log(leafNode);
+          }
         } catch (err) {
           console.error(err)
           console.log(updatedAccountInfo)
@@ -75,7 +87,7 @@ const main = async() =>{
       },
       "processed"
     );
-    console.log(`Starting web socket, subscription ID: ${subscriptionId} ${account.proposalId} ${account.pubKey.toString()}`);
+    console.log(`Starting web socket, subscription ID: ${subscriptionId} ${account.proposalId} ${account.obPubKey.toString()}`);
   }
   
   

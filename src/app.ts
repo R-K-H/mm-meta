@@ -52,34 +52,35 @@ const main = async() =>{
       })
     }
   }
-  // console.log(subscriptions)
+
   for(let account of subscriptions){
     const market = await openBookProgram.account.market.fetch(account.obPubKey)
-    const subscriptionId = solanaConnection.onAccountChange(
+    const asksSubscription = solanaConnection.onAccountChange(
       market.asks,
       (updatedAccountInfo, ctx) => {
-        console.log(`---Event Notification for ${account.proposalId} - ${account.obPubKey.toString()}`)
-        console.log()
         try {
           const asks = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data)
           const leafNodesData = asks.nodes.nodes.filter(
             (x: AnyNode) => x.tag === 2,
           );
-          const leafNodes: LeafNode[] = [];
-          for (const x of leafNodesData) {
-            const leafNode: LeafNode = openBookProgram.coder.types.decode(
-              'LeafNode',
-              Buffer.from([0, ...x.data]),
-            );
-            const owner = leafNode.owner.toString()
-            const size = leafNode.quantity.toNumber()
-            const price = leafNode.key.shrn(64).toNumber()
-            console.log(`Order updated for Proposal ${account.proposalId} - ${account.market}`)
-            console.log(`By ${owner} on slot ${ctx.slot}`)
-            console.log(`For ${size} @ $${price}`)
-            console.log()
-            //console.log(leafNode);
-          }
+          const _asks = leafNodesData
+            .map((x: any) => {
+              const leafNode: LeafNode = openBookProgram.coder.types.decode(
+                'LeafNode',
+                Buffer.from([0, ...x.data]),
+              );
+              const owner = leafNode.owner.toString()
+              const size = leafNode.quantity.toNumber()
+              const price = leafNode.key.shrn(64).toNumber() / 10_000
+              console.log(`\x1b[31mAsk\x1b[0m on ${account.market} proposal ${account.proposalId} by ${owner} on slot ${ctx.slot} for ${size} @ $${price}`)
+              return {
+                price: price,
+                size: size
+              }
+            })
+            .sort((a: {price: number, size: number}, b: {price: number, size: number}) => a.price - b.price)
+          
+          console.log(_asks)
         } catch (err) {
           console.error(err)
           console.log(updatedAccountInfo)
@@ -87,10 +88,42 @@ const main = async() =>{
       },
       "processed"
     );
-    console.log(`Starting web socket, subscription ID: ${subscriptionId} ${account.proposalId} ${account.obPubKey.toString()}`);
+    const bidsSubscription = solanaConnection.onAccountChange(
+      market.bids,
+      (updatedAccountInfo, ctx) => {
+        try {
+          const bids = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data)
+          const leafNodesData = bids.nodes.nodes.filter(
+            (x: AnyNode) => x.tag === 2,
+          );
+          const _bids = leafNodesData
+            .map((x: any) => {
+              const leafNode: LeafNode = openBookProgram.coder.types.decode(
+                'LeafNode',
+                Buffer.from([0, ...x.data]),
+              );
+              const price = leafNode.key.shrn(64).toNumber() / 10_000
+              const size = leafNode.quantity.toNumber()
+              const owner = leafNode.owner.toString()
+              console.log(`\x1b[32mBid\x1b[0m on ${account.market} proposal ${account.proposalId} by ${owner} on slot ${ctx.slot} for ${size} @ $${price}`)
+              return {
+                price: price,
+                size: size
+              }
+            })
+            .sort((a: {price: number, size: number}, b: {price: number, size: number}) => b.price - a.price)
+          
+          console.log(_bids)
+        } catch (err) {
+          console.error(err)
+          console.log(updatedAccountInfo)
+        }
+      },
+      "processed"
+    );
+    console.log(`Starting web socket, Asks subscription ID: ${asksSubscription} ${account.proposalId} ${account.obPubKey.toString()}`);
+    console.log(`Starting web socket, Bids subscription ID: ${bidsSubscription} ${account.proposalId} ${account.obPubKey.toString()}`);
   }
-  
-  
 };
 
 main();

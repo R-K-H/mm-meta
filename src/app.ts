@@ -59,8 +59,8 @@ const main = async() =>{
       market.asks,
       (updatedAccountInfo, ctx) => {
         try {
-          const asks = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data)
-          const leafNodesData = asks.nodes.nodes.filter(
+          const leafNodes = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data)
+          const leafNodesData = leafNodes.nodes.nodes.filter(
             (x: AnyNode) => x.tag === 2,
           );
           const _asks: {
@@ -91,8 +91,16 @@ const main = async() =>{
               _aggreateAsks.set(order.price, _aggreateAsks.get(order.price) + order.size)
             }
           })
-          
-          console.log(_aggreateAsks)
+          let asks: any[][]
+          if (_aggreateAsks) {
+            asks = Array.from(_aggreateAsks.entries()).map((side) => [
+              (side[0].toFixed(4)),
+              side[1]
+            ])
+          } else {
+            return [[69, 0]]
+          }
+          console.log(asks)
         } catch (err) {
           console.error(err)
           console.log(updatedAccountInfo)
@@ -104,8 +112,8 @@ const main = async() =>{
       market.bids,
       (updatedAccountInfo, ctx) => {
         try {
-          const bids = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data)
-          const leafNodesData = bids.nodes.nodes.filter(
+          const leafNodes = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data)
+          const leafNodesData = leafNodes.nodes.nodes.filter(
             (x: AnyNode) => x.tag === 2,
           );
           const _bids: {
@@ -135,7 +143,16 @@ const main = async() =>{
               _aggreateBids.set(order.price, _aggreateBids.get(order.price) + order.size)
             }
           })
-          console.log(_aggreateBids)
+          let bids: any[][]
+          if (_aggreateBids) {
+            bids = Array.from(_aggreateBids.entries()).map((side) => [
+              (side[0].toFixed(4)),
+              side[1]
+            ])
+          } else {
+            return [[0, 0]]
+          }
+          console.log(bids)
         } catch (err) {
           console.error(err)
           console.log(updatedAccountInfo)

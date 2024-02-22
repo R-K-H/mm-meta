@@ -63,7 +63,10 @@ const main = async() =>{
           const leafNodesData = asks.nodes.nodes.filter(
             (x: AnyNode) => x.tag === 2,
           );
-          const _asks = leafNodesData
+          const _asks: {
+            price: number;
+            size: number;
+          }[] = leafNodesData
             .map((x: any) => {
               const leafNode: LeafNode = openBookProgram.coder.types.decode(
                 'LeafNode',
@@ -80,7 +83,16 @@ const main = async() =>{
             })
             .sort((a: {price: number, size: number}, b: {price: number, size: number}) => a.price - b.price)
           
-          console.log(_asks)
+          const _aggreateAsks = new Map()
+          _asks.forEach((order: {price: number, size: number}) => {
+            if (_aggreateAsks.get(order.price) == undefined){
+              _aggreateAsks.set(order.price, order.size)
+            } else {
+              _aggreateAsks.set(order.price, _aggreateAsks.get(order.price) + order.size)
+            }
+          })
+          
+          console.log(_aggreateAsks)
         } catch (err) {
           console.error(err)
           console.log(updatedAccountInfo)
@@ -96,7 +108,10 @@ const main = async() =>{
           const leafNodesData = bids.nodes.nodes.filter(
             (x: AnyNode) => x.tag === 2,
           );
-          const _bids = leafNodesData
+          const _bids: {
+            price: any;
+            size: any;
+          }[] = leafNodesData
             .map((x: any) => {
               const leafNode: LeafNode = openBookProgram.coder.types.decode(
                 'LeafNode',
@@ -112,8 +127,15 @@ const main = async() =>{
               }
             })
             .sort((a: {price: number, size: number}, b: {price: number, size: number}) => b.price - a.price)
-          
-          console.log(_bids)
+          const _aggreateBids = new Map()
+          _bids.forEach((order: {price: number, size: number}) => {
+            if (_aggreateBids.get(order.price) == undefined){
+              _aggreateBids.set(order.price, order.size)
+            } else {
+              _aggreateBids.set(order.price, _aggreateBids.get(order.price) + order.size)
+            }
+          })
+          console.log(_aggreateBids)
         } catch (err) {
           console.error(err)
           console.log(updatedAccountInfo)
